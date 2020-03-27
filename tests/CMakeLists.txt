@@ -15,12 +15,9 @@ add_executable(vector_unit_test
   vector_test.cpp
 )
 
-target_compile_options(vector_unit_test PUBLIC -fsanitize=address)
-
 target_link_libraries(vector_unit_test
     algo
     Catch2
-    asan
 )
 
 add_test(test_all
