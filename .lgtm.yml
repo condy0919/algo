@@ -1,0 +1,21 @@
+# lgtm.yml configuration file for C/C++ analysis
+# of USBGuard on lgtm.com:
+# https://lgtm.com/projects/g/USBGuard/usbguard
+
+extraction:
+  cpp:
+    prepare:
+      # Most Debian/Ubuntu package dependencies 
+      # are automatically detected, but this one
+      # is not. The team at lgtm.com are looking
+      # into it.
+      packages:
+        - cmake
+    
+    configure:
+      command:
+        - cmake -H. -Bbuild
+
+    index:
+      build_command:
+        - cmake --build build

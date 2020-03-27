@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.11)
 
-project(algo_tests LANGUAGES CXX)
+project(algo_benchmarks LANGUAGES CXX)
 
 include(FetchContent)
 

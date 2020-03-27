@@ -9,8 +9,8 @@ project(algo
 
 enable_testing()
 
-option(ENABLE_TESTS "Run Unit tests" ON)
-option(ENABLE_BENCHMARK "Run benchmarks" OFF)
+option(ENABLE_TESTS "Run Unit tests" On)
+option(ENABLE_BENCHMARK "Run benchmarks" Off)
 
 add_subdirectory(src)
 
