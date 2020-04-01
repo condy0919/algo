@@ -602,23 +602,6 @@ TEST_CASE("emplace") {
     }
 
     SECTION("test01 from gcc") {
-        struct foo {
-            int a;
-            int b;
-        };
-
-        Vector<foo> x{{42, 666}};
-        auto y = x.emplace(x.begin(), 1, 2);
-        REQUIRE(y->a == 1);
-        REQUIRE(y->b == 2);
-        y = x.emplace(x.begin(), 1);
-        REQUIRE(y->a == 1);
-        REQUIRE(y->b == 0);
-        y = x.emplace(x.begin());
-        REQUIRE(y->a == 0);
-        REQUIRE(y->b == 0);
-    }
-    SECTION("test02 from gcc") {
         Vector<int> v;
         v.emplace(v.begin());
         REQUIRE(v.size() == 1);
@@ -631,24 +614,6 @@ TEST_CASE("emplace_back") {
     Vector<int>::Reference r = x.emplace_back(5);
     REQUIRE(r == 5);
     REQUIRE(&r == &x.back());
-
-    SECTION("aggressive aggregate") {
-        struct foo {
-            int a;
-            int b;
-        };
-
-        Vector<foo> x;
-        x.emplace_back(1, 2);
-        REQUIRE(x.back().a == 1);
-        REQUIRE(x.back().b == 2);
-        x.emplace_back(1);
-        REQUIRE(x.back().a == 1);
-        REQUIRE(x.back().b == 0);
-        x.emplace_back();
-        REQUIRE(x.back().a == 0);
-        REQUIRE(x.back().b == 0);
-    }
 }
 
 TEST_CASE("insert n value") {
