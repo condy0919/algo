@@ -4,7 +4,7 @@ project(algo_benchmarks LANGUAGES CXX)
 
 include(FetchContent)
 
-set(BENCHMARK_ENABLE_TESTING Off)
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Disable benchmark testing" FORCE)
 
 FetchContent_Declare(
   benchmark

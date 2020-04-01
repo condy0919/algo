@@ -12,7 +12,24 @@ Optimized `vector` for `push_back()` and `emplace_back()` operations.
 
 # Benchmark
 
+Run
+
+``` shell
+cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Release -DENABLE_BENCHMARK=On
+cmake --build build
+```
+
+to build all benchmarks.
+
 ## `algo::Vector` vs `std::vector`
+
+Run
+
+``` shell
+./build/benchmark/vector_benchmark
+```
+
+to get the result.
 
 | Operation                    | `std::vector` (ns) | `algo::Vector` (ns) |
 |------------------------------|-------------------:|--------------------:|
