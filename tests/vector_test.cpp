@@ -163,7 +163,7 @@ TEST_CASE("assign with n copies") {
     Vector<std::string> svec;
 
     SECTION("non-trivial types assign") {
-        svec.assign(3,"foo");
+        svec.assign(3, "foo");
         REQUIRE(svec.size() == 3);
         REQUIRE(svec[0] == "foo");
         REQUIRE(svec[1] == "foo");
@@ -178,6 +178,18 @@ TEST_CASE("assign with n copies") {
 TEST_CASE("assign with range elemtns") {
     Vector<int> vec;
     const Vector<int> xs = {-1, 0, 1};
+
+    const int K = 417;
+    const int A[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
+    const int B[] = {K, K, K, K, K};
+    const std::size_t N = sizeof(A) / sizeof(int);
+    const std::size_t M = sizeof(B) / sizeof(int);
+
+    SECTION("assign from pointer range") {
+        vec.assign(A, A + N);
+        REQUIRE(vec.size() == N);
+        REQUIRE(std::equal(vec.begin(), vec.end(), A));
+    }
 
     SECTION("trivial types assign") {
         vec.assign(xs.begin(), xs.end());
@@ -213,13 +225,13 @@ TEST_CASE("assgin with an initializer list") {
     Vector<int> vec;
 
     SECTION("trivial types assign") {
-        vec.assign({1,2,3});
+        vec.assign({1, 2, 3});
         REQUIRE(vec.size() == 3);
         REQUIRE(vec[0] == 1);
         REQUIRE(vec[1] == 2);
         REQUIRE(vec[2] == 3);
 
-        vec.assign({1,1,1,1});
+        vec.assign({1, 1, 1, 1});
         REQUIRE(vec.size() == 4);
         REQUIRE(vec.front() == 1);
         REQUIRE(vec.back() == 1);
@@ -339,6 +351,10 @@ TEST_CASE("erase") {
         REQUIRE(vec[1] == 4);
         REQUIRE(vec[2] == 5);
     }
+    SECTION("erase all") {
+        vec.erase(vec.cbegin(), vec.cend());
+        REQUIRE(vec.empty());
+    }
 
     Vector<std::string> svec = {"foo", "bar", "baz"};
     SECTION("erase one non-trivial element") {
@@ -361,6 +377,110 @@ TEST_CASE("erase") {
         REQUIRE(svec.size() == 2);
         REQUIRE(svec[0] == "foo");
         REQUIRE(svec[1] == "baz");
+    }
+}
+
+TEST_CASE("erase from gcc tests") {
+    const int A[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    const int A1[] = {0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    const int A2[] = {0, 2, 3, 4, 10, 11, 12, 13, 14, 15};
+    const int A3[] = {0, 2, 3, 4, 10, 11};
+    const int A4[] = {4, 10, 11};
+    const int A5[] = {4, 10};
+    const unsigned int N = sizeof(A) / sizeof(int);
+    const unsigned int N1 = sizeof(A1) / sizeof(int);
+    const unsigned int N2 = sizeof(A2) / sizeof(int);
+    const unsigned int N3 = sizeof(A3) / sizeof(int);
+    const unsigned int N4 = sizeof(A4) / sizeof(int);
+    const unsigned int N5 = sizeof(A5) / sizeof(int);
+
+    SECTION("test01") {
+        using vec_type = Vector<int>;
+        using iterator_type = vec_type::Iterator;
+        vec_type v(A, A + N);
+
+        iterator_type it1 = v.erase(v.begin() + 1);
+        REQUIRE(it1 == v.begin() + 1);
+        REQUIRE(v.size() == N1);
+        REQUIRE(std::equal(v.begin(), v.end(), A1));
+
+        iterator_type it2 = v.erase(v.begin() + 4, v.begin() + 9);
+        REQUIRE(it2 == v.begin() + 4);
+        REQUIRE(v.size() == N2);
+        REQUIRE(std::equal(v.begin(), v.end(), A2));
+
+        iterator_type it3 = v.erase(v.begin() + 6, v.end());
+        REQUIRE(it3 == v.begin() + 6);
+        REQUIRE(v.size() == N3);
+        REQUIRE(std::equal(v.begin(), v.end(), A3));
+
+        iterator_type it4 = v.erase(v.begin(), v.begin() + 3);
+        REQUIRE(it4 == v.begin());
+        REQUIRE(v.size() == N4);
+        REQUIRE(std::equal(v.begin(), v.end(), A4));
+
+        iterator_type it5 = v.erase(v.begin() + 2);
+        REQUIRE(it5 == v.begin() + 2);
+        REQUIRE(v.size() == N5);
+        REQUIRE(std::equal(v.begin(), v.end(), A5));
+
+        iterator_type it6 = v.erase(v.begin(), v.end());
+        REQUIRE(it6 == v.begin());
+        REQUIRE(v.empty());
+    }
+
+    SECTION("test02") {
+        using vec_type = Vector<Vector<int>>;
+        using iterator_type = vec_type::Iterator;
+        vec_type v, v1, v2, v3, v4, v5;
+
+        for (int i : A) {
+            v.push_back(Vector<int>(1, i));
+        }
+        for (int i : A1) {
+            v1.push_back(Vector<int>(1, i));
+        }
+        for (int i : A2) {
+            v2.push_back(Vector<int>(1, i));
+        }
+        for (int i : A3) {
+            v3.push_back(Vector<int>(1, i));
+        }
+        for (int i : A4) {
+            v4.push_back(Vector<int>(1, i));
+        }
+        for (int i : A5) {
+            v5.push_back(Vector<int>(1, i));
+        }
+
+        iterator_type it1 = v.erase(v.begin() + 1);
+        REQUIRE(it1 == v.begin() + 1);
+        REQUIRE(v.size() == N1);
+        REQUIRE(std::equal(v.begin(), v.end(), v1.begin()));
+
+        iterator_type it2 = v.erase(v.begin() + 4, v.begin() + 9);
+        REQUIRE(it2 == v.begin() + 4);
+        REQUIRE(v.size() == N2);
+        REQUIRE(std::equal(v.begin(), v.end(), v2.begin()));
+
+        iterator_type it3 = v.erase(v.begin() + 6, v.end());
+        REQUIRE(it3 == v.begin() + 6);
+        REQUIRE(v.size() == N3);
+        REQUIRE(std::equal(v.begin(), v.end(), v3.begin()));
+
+        iterator_type it4 = v.erase(v.begin(), v.begin() + 3);
+        REQUIRE(it4 == v.begin());
+        REQUIRE(v.size() == N4);
+        REQUIRE(std::equal(v.begin(), v.end(), v4.begin()));
+
+        iterator_type it5 = v.erase(v.begin() + 2);
+        REQUIRE(it5 == v.begin() + 2);
+        REQUIRE(v.size() == N5);
+        REQUIRE(std::equal(v.begin(), v.end(), v5.begin()));
+
+        iterator_type it6 = v.erase(v.begin(), v.end());
+        REQUIRE(it6 == v.begin());
+        REQUIRE(v.empty());
     }
 }
 
@@ -389,6 +509,13 @@ TEST_CASE("insert") {
         REQUIRE(vec[1] == 1);
         REQUIRE(vec[2] == 3);
     }
+    SECTION("insert trivial elements in range") {
+        int i01 = 5;
+        int* pi01 = &i01;
+        vec.insert(vec.begin(), pi01, pi01 + 1);
+        REQUIRE(vec.size() == 1);
+        REQUIRE(vec[0] == 5);
+    }
 
     Vector<std::string> svec;
     REQUIRE(svec.empty());
@@ -413,6 +540,13 @@ TEST_CASE("insert") {
         REQUIRE(svec[0] == "21");
         REQUIRE(svec[1] == "42");
         REQUIRE(svec[2] == "32");
+    }
+    SECTION("insert non-trivial elements in range") {
+        std::string s = "foo";
+        std::string* p = &s;
+        svec.insert(svec.begin(), p, p + 1);
+        REQUIRE(svec.size() == 1);
+        REQUIRE(svec[0] == "foo");
     }
 }
 
@@ -466,6 +600,55 @@ TEST_CASE("emplace") {
         REQUIRE(svec[1] == "42");
         REQUIRE(svec[2] == "32");
     }
+
+    SECTION("test01 from gcc") {
+        struct foo {
+            int a;
+            int b;
+        };
+
+        Vector<foo> x{{42, 666}};
+        auto y = x.emplace(x.begin(), 1, 2);
+        REQUIRE(y->a == 1);
+        REQUIRE(y->b == 2);
+        y = x.emplace(x.begin(), 1);
+        REQUIRE(y->a == 1);
+        REQUIRE(y->b == 0);
+        y = x.emplace(x.begin());
+        REQUIRE(y->a == 0);
+        REQUIRE(y->b == 0);
+    }
+    SECTION("test02 from gcc") {
+        Vector<int> v;
+        v.emplace(v.begin());
+        REQUIRE(v.size() == 1);
+        REQUIRE(v[0] == 0);
+    }
+}
+
+TEST_CASE("emplace_back") {
+    Vector<int> x{1, 2, 3, 4};
+    Vector<int>::Reference r = x.emplace_back(5);
+    REQUIRE(r == 5);
+    REQUIRE(&r == &x.back());
+
+    SECTION("aggressive aggregate") {
+        struct foo {
+            int a;
+            int b;
+        };
+
+        Vector<foo> x;
+        x.emplace_back(1, 2);
+        REQUIRE(x.back().a == 1);
+        REQUIRE(x.back().b == 2);
+        x.emplace_back(1);
+        REQUIRE(x.back().a == 1);
+        REQUIRE(x.back().b == 0);
+        x.emplace_back();
+        REQUIRE(x.back().a == 0);
+        REQUIRE(x.back().b == 0);
+    }
 }
 
 TEST_CASE("insert n value") {
@@ -503,6 +686,24 @@ TEST_CASE("insert n value") {
         REQUIRE(vec[4] == 2);
     }
 
+    SECTION("insert multiplies") {
+        Vector<int> v1, v2{5, 6};
+        int n = 0;
+        auto it = v1.insert(v1.cbegin(), n);
+        it = v1.insert(v1.cbegin(), 1);
+        it = v1.insert(v1.cbegin(), {2, 3});
+        it = v1.insert(v1.cbegin(), 1, 4);
+        it = v1.insert(v1.cbegin(), v2.begin(), v2.end());
+        REQUIRE(v1.size() == 7);
+        REQUIRE(v1[0] == 5);
+        REQUIRE(v1[1] == 6);
+        REQUIRE(v1[2] == 4);
+        REQUIRE(v1[3] == 2);
+        REQUIRE(v1[4] == 3);
+        REQUIRE(v1[5] == 1);
+        REQUIRE(v1[6] == 0);
+    }
+
     Vector<std::string> svec;
     SECTION("insert a non-trivial element at the beginning") {
         svec.insert(svec.begin(), 1, "foo");
@@ -534,6 +735,76 @@ TEST_CASE("insert n value") {
         REQUIRE(svec[2] == "baz");
         REQUIRE(svec[3] == "baz");
         REQUIRE(svec[4] == "bar");
+    }
+}
+
+struct T {
+    T() = default;
+    T(const T&) = default;
+    T(T&&) = delete;
+};
+
+class Bomb {
+public:
+    Bomb() = default;
+
+    Bomb(const Bomb& b) : armed_(b.armed_) {
+        tick();
+    }
+
+    Bomb(Bomb&& b) noexcept(false) : armed_(b.armed_) {
+        tick();
+        b.moved_from_ = true;
+    }
+
+    template <typename T>
+    Bomb(T&) = delete;
+
+    [[nodiscard]] bool moved() const noexcept {
+        return moved_from_;
+    }
+
+    void armed(bool b) noexcept {
+        armed_ = b;
+    }
+
+    [[nodiscard]] bool armed() const noexcept {
+        return armed_;
+    }
+
+private:
+    void tick() {
+        if (armed_ && ticks_++) {
+            throw 1;
+        }
+    }
+
+    bool moved_from_ = false;
+    bool armed_ = true;
+    static int ticks_;
+};
+
+int Bomb::ticks_ = 0;
+
+TEST_CASE("push_back") {
+    const T val;
+    Vector<T> x;
+    x.push_back(val);
+
+    SECTION("strong exception guarantee") {
+        Vector<Bomb> v(2);
+        v.resize(v.capacity());
+        // sanity check
+        for (auto& e : v) {
+            REQUIRE(!e.moved());
+        }
+        Bomb defused;
+        defused.armed(false);
+        REQUIRE_THROWS(v.push_back(defused));
+        // sanity check
+        for (auto& e : v) {
+            REQUIRE(!e.moved());
+        }
     }
 }
 

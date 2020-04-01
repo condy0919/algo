@@ -766,7 +766,9 @@ public:
     /// is smaller than the `Vector`'s current size the `Vector` is truncated,
     /// otherwise default constructed elements are appended.
     void resize(SizeType new_size) {
-        if (new_size < size()) {
+        if (new_size == size()) {
+            return;
+        } else if (new_size < size()) {
             std::destroy(start_ + new_size, finish_);
         } else if (new_size > size() && new_size < capacity()) {
             std::uninitialized_default_construct_n(finish_, new_size - size());
