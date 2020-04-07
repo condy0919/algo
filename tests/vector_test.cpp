@@ -41,6 +41,7 @@ TEST_CASE("constructor with n copies with specified value") {
 
 TEST_CASE("constructor with n defaulted copies") {
     Vector<int> vec(5);
+    REQUIRE(vec.size() == 5);
 }
 
 TEST_CASE("constructor with ranges") {
