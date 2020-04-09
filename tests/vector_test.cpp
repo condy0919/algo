@@ -319,7 +319,7 @@ TEST_CASE("shrink") {
     REQUIRE(svec.size() == 3);
     REQUIRE(svec.capacity() >= 3);
 
-    svec.shrink();
+    svec.shrink_to_fit();
     REQUIRE(svec.size() == 3);
     REQUIRE(svec.capacity() == 3);
 }

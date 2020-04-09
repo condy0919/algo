@@ -18,6 +18,10 @@ namespace algo {
 /// saves the user from worring about memory and size allocation. Subscripting
 /// (`[]`) access is also provided as with C-style arrays.
 ///
+/// # Note
+///
+/// Allocator awareness is not supported.
+///
 /// # Example
 ///
 /// ```cpp
@@ -41,9 +45,13 @@ class Vector {
     static_assert(std::is_same_v<typename Allocator::value_type, T>,
                   "Vector must have the same ValueType as its allocator");
 
-    static constexpr bool relocatable =
-        std::is_trivially_copyable_v<T> &&
+    static constexpr bool using_std_allocator =
         std::is_same_v<Allocator, std::allocator<T>>;
+
+    static constexpr bool relocatable =
+        std::is_trivially_copyable_v<T> && using_std_allocator;
+
+    using AllocTraits = std::allocator_traits<Allocator>;
 
 public:
     using ValueType = T;
@@ -133,8 +141,12 @@ public:
         rhs.start_ = rhs.finish_ = rhs.end_of_storage_ = nullptr;
     }
 
-    /// Please DONT call it.
-    Vector(Vector&& rhs, const AllocatorType& alloc) = delete;
+    /// Move constructor with alternative allocator.
+    Vector(Vector&& rhs, const AllocatorType& alloc) noexcept(noexcept(
+        Vector(std::declval<Vector&&>(), std::declval<const AllocatorType&>(),
+               std::declval<typename AllocTraits::is_always_equal>())))
+        : Vector(std::move(rhs), alloc,
+                 typename AllocTraits::is_always_equal{}) {}
 
     /// Constructs the container with the contents of the initializer list
     /// `init`.
@@ -158,22 +170,46 @@ public:
     /// Copy assignment operator. Replaces the contents with a copy of the
     /// contents of `rhs`.
     Vector& operator=(const Vector& rhs) {
-        Vector tmp(rhs);
-        tmp.swap(*this);
+        const SizeType len = rhs.size();
+        if (len > capacity()) {
+            Vector tmp(rhs);
+            tmp.swap(*this);
+        } else if (len > size()) {
+            std::copy(rhs.start_, rhs.start_ + size(), start_);
+            finish_ = std::uninitialized_copy(rhs.start_ + size(), rhs.finish_,
+                                              finish_);
+        } else {
+            auto iter = std::copy(rhs.start_, rhs.finish_, start_);
+            std::destroy(iter, finish_);
+            finish_ = iter;
+        }
+
         return *this;
     }
 
     /// Move assignment operator. Replaces the contents with `rhs` using move
     /// semantics.
     Vector& operator=(Vector&& rhs) noexcept {
-        Vector tmp(std::move(rhs));
-        tmp.swap(*this);
+        const SizeType len = rhs.size();
+        if (len > capacity()) {
+            Vector tmp(std::move(rhs));
+            tmp.swap(*this);
+        } else if (len > size()) {
+            std::move(rhs.start_, rhs.start_ + size(), start_);
+            finish_ = std::uninitialized_move(rhs.start_ + size(), rhs.finish_,
+                                              finish_);
+        } else {
+            auto iter = std::move(rhs.start_, rhs.finish_, start_);
+            std::destroy(iter, finish_);
+            finish_ = iter;
+        }
+
         return *this;
     }
 
     /// Replaces the contents with those identified by initializer list `ilist`.
     Vector& operator=(std::initializer_list<T> ilist) {
-        assign(std::move(ilist));
+        assign(ilist);
         return *this;
     }
 
@@ -183,7 +219,7 @@ public:
     /// are invalidated. The past-the-end iterator is also invalidated.
     void assign(SizeType count, const T& value) {
         if (count > capacity()) {
-            Vector tmp(count, value, getAllocator());
+            Vector tmp(count, value, get_allocator());
             tmp.swap(*this);
         } else if (count > size()) {
             std::fill(start_, finish_, value);
@@ -245,7 +281,7 @@ public:
     /// are invalidated. The past-the-end iterator is also invalidated.
     void assign(std::initializer_list<T> ilist) {
         if (ilist.size() > capacity()) {
-            Vector tmp(ilist.begin(), ilist.end(), getAllocator());
+            Vector tmp(ilist.begin(), ilist.end(), get_allocator());
             tmp.swap(*this);
         } else if (ilist.size() > size()) {
             std::copy_n(ilist.begin(), size(), start_);
@@ -260,7 +296,7 @@ public:
     }
 
     /// Returns the allocator associated with the container.
-    AllocatorType getAllocator() const {
+    AllocatorType get_allocator() const {
         return allocator_;
     }
 
@@ -469,8 +505,8 @@ public:
     }
 
     /// Returns the size() of the largest possible `Vector`.
-    [[nodiscard]] SizeType maxSize() const noexcept {
-        return ~SizeType(0);
+    [[nodiscard]] SizeType max_size() const noexcept {
+        return SizeType(-1) / 2 / sizeof(ValueType);
     }
 
     /// Increase the capacity of the `Vector` to `new_cap`. If `new_cap` is
@@ -483,7 +519,7 @@ public:
     /// pass the end iterator, and all references to the elements are
     /// invalidated. Otherwise, no iterators or references are invalidated.
     void reserve(SizeType new_cap) {
-        if (new_cap > maxSize()) {
+        if (new_cap > max_size()) {
             throw std::length_error("Vector::reserve too large capacity");
         }
         if (new_cap > capacity()) {
@@ -503,7 +539,7 @@ public:
     /// reallocation occurs, all iterators, including the past the end iterator,
     /// and all references to the elements are invalidated. If no reallocation
     /// takes place, no iterators or references are invalidated.
-    void shrink() {
+    void shrink_to_fit() {
         const SizeType old_size = size();
         growShrinkAux(old_size);
     }
@@ -712,7 +748,7 @@ public:
     /// `Vector` has preallocated space available.
     void push_back(const ValueType& e) {
         if (finish_ == end_of_storage_) {
-            growShrinkAux(capacity() * 2 + 1);
+            growShrinkAux(next_size(capacity()));
         }
 
         new (finish_) T(e);
@@ -722,7 +758,7 @@ public:
     /// Move version of `push_back()`.
     void push_back(ValueType&& e) {
         if (finish_ == end_of_storage_) {
-            growShrinkAux(capacity() * 2 + 1);
+            growShrinkAux(next_size(capacity()));
         }
 
         new (finish_) T(std::move(e));
@@ -741,7 +777,7 @@ public:
     template <typename... Args>
     Reference emplace_back(Args&&... args) {
         if (finish_ == end_of_storage_) {
-            growShrinkAux(capacity() * 2 + 1);
+            growShrinkAux(next_size(capacity()));
         }
 
         new (finish_) T(std::forward<Args>(args)...);
@@ -803,13 +839,40 @@ public:
     }
 
 private:
-    void addressCheck(ConstIterator p) {
+    // Called by `Vector(Vector&&, const AllocatorType& alloc)`
+    Vector(Vector&& rhs, const AllocatorType& alloc, std::true_type) noexcept
+        : allocator_(alloc) {
+        start_ = rhs.start_;
+        finish_ = rhs.finish_;
+        end_of_storage_ = rhs.end_of_storage_;
+        rhs.start_ = rhs.finish_ = rhs.end_of_storage_ = nullptr;
+    }
+
+    Vector(Vector&& rhs, const AllocatorType& alloc, std::false_type)
+        : allocator_(alloc) {
+        if (rhs.get_allocator() == alloc) {
+            start_ = rhs.start_;
+            finish_ = rhs.finish_;
+            end_of_storage_ = rhs.end_of_storage_;
+            rhs.start_ = rhs.finish_ = rhs.end_of_storage_ = nullptr;
+        } else if (!rhs.empty()) {
+            create(rhs.size());
+            finish_ = std::uninitialized_move(rhs.begin(), rhs.end(), start_);
+            rhs.clear();
+        }
+    }
+
+    static constexpr SizeType next_size(SizeType sz) noexcept {
+        return sz * 3 / 2 + 1;
+    }
+
+    void addressCheck(ConstIterator p) const {
         if (p >= start_ && p < finish_) {
             throw std::range_error("Vector:addressCheck failed");
         }
     }
 
-    void rangeCheck(SizeType n) {
+    void rangeCheck(SizeType n) const {
         if (n >= size()) {
             throw std::out_of_range("Vector::rangeCheck failed");
         }
@@ -890,7 +953,7 @@ private:
     Iterator insertExpandAux(Iterator pos, Args&&... args) {
         const SizeType offset = pos - begin();
         const SizeType old_size = size(); // equal to capacity()
-        const SizeType sz = old_size * 2 + 1;
+        const SizeType sz = next_size(old_size);
 
         Pointer tmp = allocate(sz);
         if constexpr (std::is_trivially_copyable_v<T>) {
