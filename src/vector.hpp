@@ -828,11 +828,6 @@ public:
     /// `std::swap(v1, v2)` will feed to this function.
     void swap(Vector& rhs) noexcept {
         using std::swap;
-
-        auto a = std::move(rhs.allocator_);
-        rhs.allocator_ = std::move(allocator_);
-        allocator_ = std::move(a);
-
         swap(start_, rhs.start_);
         swap(finish_, rhs.finish_);
         swap(end_of_storage_, rhs.end_of_storage_);
