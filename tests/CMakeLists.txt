@@ -20,6 +20,16 @@ target_link_libraries(vector_unit_test
     Catch2
 )
 
+add_executable(stack_unit_test
+  stack_test.cpp
+)
+
+target_link_libraries(stack_unit_test
+  algo
+  Catch2
+)
+
 add_test(test_all
   vector_unit_test
+  stack_unit_test
 )
